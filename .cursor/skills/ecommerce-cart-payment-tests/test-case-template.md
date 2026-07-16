@@ -58,8 +58,8 @@
 - UI 失败截图: reports/screenshots/
 
 ## 范围
-- In: API 契约 + UI 关键路径 + 真实沙箱支付
-- Out: mock 支付、物流售后（除非指定）
+- In: API 契约 + UI 关键路径 + 真实沙箱支付 + 偶发 flaky 用例级重试
+- Out: mock 支付、物流售后、**性能/压力/负载/benchmark 测试**（除非用户另开任务）
 
 ## 用例列表
 | ID | 优先级 | 模块 | 标题 | API | UI |
@@ -78,6 +78,17 @@
 - [ ] 显式等待在 Page 方法内，不在 test 内
 - [ ] assert 在 test 层；Page 返回待断言数据
 - [ ] 弹窗由 Page 步骤后调用 PopupHelper
+```
+
+## 重试检查表（UI 偶发失败）
+
+```
+- [ ] 已优先加强显式等待 / POM，非首选重试
+- [ ] 仅 flaky UI 用例标记 @pytest.mark.flaky(reruns=2)
+- [ ] API 业务失败不重试
+- [ ] --reruns 不超过 2，有 --reruns-delay
+- [ ] 日志/报告中可识别 RERUN
+- [ ] 非性能/压测场景（本 Skill 不做性能测试）
 ```
 
 ## API 断言检查表

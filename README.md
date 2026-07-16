@@ -77,6 +77,8 @@ skills_demo/
 - **测试范围矩阵**与各模块清单（设计用例必读，见 SKILL.md）
 - UI + API 双层，真实环境，禁止 mock
 - **POM 强制**：UI 定位与操作只在 `tests/pages/`，test 只编排与断言
+- **重试**：UI 偶发 flaky 用 `pytest-rerunfailures`；API 业务失败不重试
+- **不含**：性能/压力/负载/benchmark 测试
 - API：`ShopApiClient` + session 隔离 + `code/data` 断言
 - UI：显式/隐性等待、按需弹窗、失败截图
 - 自动 HTML 报告与日志
@@ -122,6 +124,7 @@ pytest -m api               # 仅接口
 pytest -m ui                # 仅 UI
 pytest -m cart              # 两层购物车
 pytest -m payment           # 两层支付
+pytest -m ui --reruns 2 --reruns-delay 1   # UI 偶发失败重试
 HEADLESS=true pytest -m ui  # UI 无头
 ```
 

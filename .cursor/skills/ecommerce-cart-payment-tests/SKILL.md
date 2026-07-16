@@ -2,8 +2,8 @@
 name: ecommerce-cart-payment-tests
 description: >-
   电商购物车、结算、支付的 UI + 接口双层自动化测试（pytest + Selenium + requests）。
-  含可运行 demo_shop、REST API、E2E 与 API 用例，POM 页面对象、等待策略、日志、HTML 报告与失败截图。
-  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, POM, Page Object,
+  含可运行 demo_shop、REST API、E2E 与 API 用例，POM、重试机制、等待策略、日志、HTML 报告与失败截图。
+  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, POM, retry, flaky,
   购物车, 结算, 支付, UI自动化, 接口测试, E2E.
 ---
 
@@ -16,6 +16,8 @@ description: >-
 | **接口** | pytest + requests | `tests/api/` | 业务逻辑、契约、幂等、边界、快速回归 |
 | **UI** | pytest + Selenium | `tests/e2e/` | 用户路径、页面展示、弹窗、沙箱支付页 |
 
+**本 Skill 范围外（不做）：** 性能测试、压力测试、负载测试、benchmark、并发压测——仅做 **功能** 层面的 UI + 接口测试。
+
 原则：**接口覆盖核心逻辑，UI 覆盖关键路径**；同一业务场景可分别有 API-* 与 UI-* 用例 ID。
 
 ## 测试范围矩阵
@@ -24,7 +26,7 @@ description: >-
 
 | 模块 | 必测场景 | 常见边界 | API | UI |
 |------|----------|----------|-----|-----|
-| 购物车 | 加购、同 SKU 合并、改数量、删商品、清空、查询 | 库存不足、下架、限购、失效 SKU、并发改数量 | ✓ 必做 | ✓ 主路径 |
+| 购物车 | 加购、同 SKU 合并、改数量、删商品、清空、查询 | 库存不足、下架、限购、失效 SKU | ✓ 必做 | ✓ 主路径 |
 | 结算 | 金额/运费计算、优惠券/积分、提交订单、生成 orderNo | 券过期、门槛不满足、地址不可达、价格变动 | ✓ 必做 | ✓ 展示+弹窗 |
 | 支付 | 发起支付、成功、失败/取消、超时、重复点击 | 幂等回调、回调乱序、沙箱跳转失败 | ✓ 必做 | ✓ 沙箱页 |
 | 订单 | 状态流转、订单详情、取消/关单规则 | 支付中取消、待支付超时、重复支付 | ✓ 必做 | ✓ 结果页 |
@@ -156,7 +158,7 @@ pytest tests/e2e/       # 指定目录
 2. **先判断层级** — 逻辑/契约 → API；页面/交互 → UI；关键场景 → 两层各一条
 3. **真实环境** — 连 demo_shop 或测试/预发 URL；禁止 mock 接口
 4. **接口** — `ShopApiClient` + session 隔离 + 断言 HTTP + `code` + `data`
-5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图
+5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图 + 偶发 flaky 时用例级重试
 
 ## 接口测试规范
 
@@ -290,6 +292,69 @@ def test_bad(self, driver):
 - UI 结算/支付 → `tests/e2e/test_checkout_payment.py`（只调各 Page）
 - Page → `tests/pages/`（见 **POM 设计模式**）
 
+## 重试机制
+
+用于缓解 **环境偶发不稳定**（浏览器渲染、网络抖动、第三方支付页加载慢），**不能**用来掩盖业务缺陷或稳定失败的断言。
+
+### 适用 / 不适用
+
+| 适用 | 不适用 |
+|------|--------|
+| UI 元素偶发未就绪（已用显式等待仍偶发） | API 返回固定 4xx/5xx 或业务 code 错误 |
+| 沙箱支付页偶发加载超时 | 断言逻辑写错、测试数据错误 |
+| 本地/CI 环境 flaky | 每次必现的失败 |
+
+**顺序：** 先加强 **显式等待 / POM 稳定性** → 仍 flaky 再加 **用例级重试** → 禁止一上来全局盲目重试。
+
+### 工具与配置
+
+默认使用 **pytest-rerunfailures**：
+
+```bash
+# UI 偶发失败时（最多跑 3 次：1 + 2 次重试）
+pytest -m ui --reruns 2 --reruns-delay 1
+
+# 仅重试指定用例
+pytest tests/e2e/test_cart.py::TestCart::test_cart_add_item_shows_badge_count_one --reruns 2
+```
+
+| 配置 | 推荐值 | 说明 |
+|------|--------|------|
+| `--reruns` | `2` | 失败后最多再跑 2 次 |
+| `--reruns-delay` | `1`（秒） | 重试间隔，禁止用 sleep 代替业务等待 |
+| 作用范围 | **仅 UI** 或标记 `flaky` 的用例 | API 默认不重试 |
+
+环境变量（可选）：`PYTEST_RERUNS=2`、`PYTEST_RERUNS_DELAY=1`
+
+### 用例标记
+
+对确认偶发的 UI 用例打 `@pytest.mark.flaky`：
+
+```python
+import pytest
+
+@pytest.mark.ui
+@pytest.mark.flaky(reruns=2, reruns_delay=1)
+def test_full_checkout_payment_success(self, driver, log_test_name):
+    ...
+```
+
+- **API 用例**：不加 `flaky`；连接类错误可在 `ShopApiClient` 内做 **最多 1 次** 请求重试，且只针对 `ConnectionError` / `Timeout`
+- 在 `pytest.ini` 注册 `flaky` marker，避免警告
+
+### 日志与报告
+
+- 重试发生时必须在日志中可见（pytest-rerunfailures 会输出 `RERUN`）
+- HTML 报告保留 **最终** 结果；若最终通过但曾失败，在 PR/说明中标注为 flaky 并建 issue 修根因
+- 失败截图：以 **最后一次失败** 为准（已有 `screenshot_on_failure`）
+
+### 重试反模式
+
+- 全局 `--reruns 5` 刷绿 CI
+- 对 API 业务错误（库存不足、code≠0）重试
+- 用重试替代显式等待或修复 locator
+- 不记录 flaky 用例、不跟进根因
+
 ## 用例 ID 对照
 
 | 模块 | API ID | UI ID |
@@ -314,6 +379,8 @@ def test_bad(self, driver):
 | TEST_PASSWORD | 123456 | 密码 |
 | DEFAULT_SKU | sku-001 | 默认商品 |
 | HEADLESS | false | UI 无头模式 |
+| PYTEST_RERUNS | 0 | UI 重试次数（命令行 `--reruns` 优先） |
+| PYTEST_RERUNS_DELAY | 1 | 重试间隔秒数 |
 
 ## 对接真实项目
 
@@ -330,6 +397,8 @@ def test_bad(self, driver):
 - UI 使用 sleep；API 无业务 code 断言
 - UI 失败无截图；无日志文件
 - **违反 POM**：test 中直接操作 WebDriver / 写 locator
+- **滥用重试**：掩盖稳定失败、对 API 业务错误重试
+- **性能测试**：本 Skill 不包含压测/负载/benchmark（见范围外说明）
 
 ## 附加资源
 

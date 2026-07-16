@@ -46,6 +46,21 @@ def test_xxx(self, driver, log_test_name):
 
 完整 POM 规则见 [SKILL.md](SKILL.md) **POM 设计模式** 章节。
 
+## 重试示例
+
+```python
+@pytest.mark.ui
+@pytest.mark.flaky(reruns=2, reruns_delay=1)
+def test_full_checkout_payment_success(self, driver, log_test_name):
+    ...
+```
+
+```bash
+pytest -m ui --reruns 2 --reruns-delay 1
+```
+
+规则见 [SKILL.md](SKILL.md) **重试机制**；**不包含**性能/压力测试。
+
 ## 用例对照表
 
 | ID | 层 | 文件 | 说明 |
@@ -65,6 +80,7 @@ python run_server.py          # 先启动服务
 pytest                        # 全部
 pytest -m api                 # 仅接口（无需浏览器）
 pytest -m ui                  # 仅 UI
+pytest -m ui --reruns 2 --reruns-delay 1   # UI 偶发失败重试
 pytest -m "api and payment"   # API 支付
 pytest tests/api/test_cart_api.py -v
 ```
