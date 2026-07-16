@@ -2,109 +2,174 @@
 
 ## 示例 1：用例清单（文档输出）
 
-用户请求：「帮我列购物车 API 测试用例」
+用户请求：「帮我列购物车 UI 测试用例」
 
 | ID | 优先级 | 模块 | 标题 | 类型 |
 |----|--------|------|------|------|
-| CART-001 | P0 | 购物车 | 加购单个 SKU 后购物车数量为 1 | API |
-| CART-002 | P0 | 购物车 | 同 SKU 再次加购合并数量 | API |
-| CART-003 | P1 | 购物车 | 加购数量超过库存返回明确错误 | API |
-| CART-004 | P1 | 购物车 | 删除商品后购物车为空 | API |
-| CHK-001 | P0 | 结算 | 无券结算金额等于商品小计加固运费 | API |
-| PAY-001 | P0 | 支付 | 模拟支付成功回调后订单变为已支付 | API |
+| CART-001 | P0 | 购物车 | 加购后角标显示 1 | UI |
+| CART-002 | P0 | 购物车 | 同 SKU 再次加购角标累加 | UI |
+| CART-003 | P1 | 购物车 | 超库存时页面提示不可结算 | UI |
+| CHK-001 | P0 | 结算 | 结算页金额与购物车一致 | UI |
+| PAY-001 | P0 | 支付 | 沙箱支付成功后展示成功页 | E2E |
 
 ---
 
-## 示例 2：pytest API 自动化（参考结构）
-
-适配项目时替换 URL、字段名与 auth 方式。
+## 示例 2：Playwright E2E + 显式等待 + 按需弹窗
 
 ```python
+import logging
+import re
+
+import pytest
+from playwright.sync_api import Page, expect
+
+logger = logging.getLogger(__name__)
+
+
+class ProductPage:
+    def __init__(self, page: Page):
+        self.page = page
+
+    def open(self, url: str):
+        logger.info("Open product page: %s", url)
+        self.page.goto(url)
+        self.dismiss_cookie_bar_if_present()
+
+    def dismiss_cookie_bar_if_present(self):
+        bar = self.page.locator("[data-testid='cookie-consent']")
+        try:
+            bar.wait_for(state="visible", timeout=2000)
+            self.page.get_by_test_id("cookie-accept-btn").click()
+            bar.wait_for(state="hidden")
+            logger.info("Cookie bar dismissed")
+        except Exception:
+            logger.info("No cookie bar")
+
+    def add_to_cart(self):
+        self.page.get_by_test_id("add-to-cart-btn").click()
+        expect(self.page.get_by_test_id("cart-badge-count")).to_have_text("1")
+
+
+class CheckoutPage:
+    def __init__(self, page: Page):
+        self.page = page
+
+    def submit_order(self):
+        self.page.get_by_test_id("submit-order-btn").click()
+        self.confirm_price_change_if_present()
+
+    def confirm_price_change_if_present(self):
+        dialog = self.page.locator("[data-testid='price-change-dialog']")
+        try:
+            dialog.wait_for(state="visible", timeout=3000)
+            self.page.get_by_test_id("confirm-price-change-btn").click()
+            dialog.wait_for(state="hidden")
+            logger.warning("Price change dialog confirmed")
+        except Exception:
+            logger.info("No price change dialog")
+
+
+def test_checkout_happy_path(page: Page, base_url: str, product_url: str):
+    product = ProductPage(page)
+    checkout = CheckoutPage(page)
+
+    product.open(product_url)
+    product.add_to_cart()
+
+    page.get_by_test_id("checkout-btn").click()
+    expect(page).to_have_url(re.compile(r"/checkout"))
+
+    checkout.submit_order()
+
+    # 真实沙箱：等跳转回站点的成功态，不用 sleep
+    expect(page.get_by_test_id("payment-success-msg")).to_be_visible(timeout=60_000)
+    logger.info("Payment success verified on UI")
+```
+
+---
+
+## 示例 3：conftest — 日志 + 失败截图 + 隐性超时
+
+```python
+import logging
+from datetime import datetime
+from pathlib import Path
+
 import pytest
 
 
-@pytest.mark.parametrize("quantity", [1, 2])
-def test_cart_add_item(api_client, product_in_stock, quantity):
-    sku_id = product_in_stock["skuId"]
-
-    resp = api_client.post("/api/cart/items", json={"skuId": sku_id, "quantity": quantity})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["code"] == 0
-
-    cart = api_client.get("/api/cart").json()["data"]
-    item = next(i for i in cart["items"] if i["skuId"] == sku_id)
-    assert item["quantity"] == quantity
-
-
-def test_checkout_creates_pending_order(api_client, cart_with_one_item, default_address):
-    resp = api_client.post(
-        "/api/orders/checkout",
-        json={"addressId": default_address["id"], "couponId": None},
+@pytest.fixture(scope="session", autouse=True)
+def setup_logging():
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    log_file = log_dir / f"test_{datetime.now():%Y%m%d_%H%M%S}.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
-    assert resp.status_code == 200
-    order = resp.json()["data"]
-    assert order["status"] == "PENDING_PAYMENT"
-    assert order["totalAmount"] == cart_with_one_item["expectedTotal"]
+    logging.info("Log file: %s", log_file)
 
 
-def test_payment_notify_idempotent(api_client, pending_order, payment_sandbox):
-    payment_id = payment_sandbox.create_payment(pending_order["orderNo"])
+@pytest.fixture
+def page(page):
+    page.set_default_timeout(10_000)
+    page.set_default_navigation_timeout(30_000)
+    yield page
 
-    for _ in range(2):
-        notify_resp = api_client.post(
-            "/api/payment/notify",
-            json=payment_sandbox.build_success_payload(payment_id),
-        )
-        assert notify_resp.status_code == 200
 
-    order = api_client.get(f"/api/orders/{pending_order['orderNo']}").json()["data"]
-    assert order["status"] == "PAID"
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    if report.when == "call" and report.failed:
+        page = item.funcargs.get("page")
+        if page:
+            out = Path("reports/screenshots")
+            out.mkdir(parents=True, exist_ok=True)
+            path = out / f"{item.name}.png"
+            page.screenshot(path=path, full_page=True)
+            logging.error("Failure screenshot: %s", path)
 ```
 
 ---
 
-## 示例 3：Playwright E2E 冒烟（参考结构）
+## 示例 4：Selenium 显式等待（无 sleep）
 
 ```python
-def test_guest_checkout_happy_path(page, base_url, test_product_url):
-    page.goto(test_product_url)
-    page.get_by_test_id("add-to-cart-btn").click()
-    page.get_by_test_id("cart-badge-count").wait_for()
-    assert page.get_by_test_id("cart-badge-count").inner_text() == "1"
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-    page.get_by_test_id("checkout-btn").click()
-    page.get_by_test_id("submit-order-btn").click()
 
-    page.get_by_test_id("pay-confirm-btn").click()
-    page.get_by_text("支付成功").wait_for(timeout=15000)
+def click_checkout(driver):
+    driver.implicitly_wait(5)  # 隐性兜底，仅初始化一次
+    btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "[data-testid='checkout-btn']"))
+    )
+    btn.click()
+    WebDriverWait(driver, 15).until(EC.url_contains("/checkout"))
 ```
 
 ---
 
-## 示例 4：支付 mock 回调
+## 示例 5：生成报告命令
 
-当无法调用真实网关时，直接 POST 回调接口：
-
-```python
-def simulate_payment_success(api_client, order_no, amount_cents):
-    payload = {
-        "orderNo": order_no,
-        "paymentId": f"test_pay_{order_no}",
-        "amount": amount_cents,
-        "status": "SUCCESS",
-        "sign": "mock_sign_in_test_env",
-    }
-    return api_client.post("/api/payment/notify", json=payload)
+```bash
+pytest tests/e2e/ -v --html=reports/report.html --self-contained-html
+pytest tests/e2e/ -v --alluredir=reports/allure-results
 ```
 
 ---
 
-## 示例 5：用户对话 → Agent 行为
+## 示例 6：用户对话 → Agent 行为
 
 | 用户说 | Agent 应做 |
 |--------|------------|
-| 「写购物车测试用例」 | 输出用例清单表格，覆盖加购/改数量/删/库存边界 |
-| 「实现支付自动化」 | 查项目框架 → API 测试 + mock 回调 → 说明 env 变量 |
-| 「E2E 从加购到支付」 | 1 条 P0 冒烟 + 依赖 testid；复杂断言放 API 层 |
-| 「并发加购怎么测」 | 用例 + threading/async 示例 + 断言最终库存与数量 |
+| 「写购物车测试用例」 | 输出 UI 用例清单，标注弹窗点与等待策略 |
+| 「实现支付 E2E」 | 真实环境 + 沙箱支付 + 显式等待 + conftest 日志截图报告 |
+| 「老失败在弹窗」 | 在对应 Page 步骤后加局部弹窗 helper，禁止全局扫描 |
+| 「加测试报告」 | pytest-html 或 allure 配置 + 失败截图 hook |

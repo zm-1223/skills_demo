@@ -1,4 +1,4 @@
-# 购物车与支付测试用例模板
+# 购物车与支付 UI 测试用例模板
 
 ## 单条用例模板
 
@@ -7,42 +7,52 @@
 
 - **优先级**: P0 | P1 | P2
 - **模块**: 购物车 | 结算 | 支付 | 订单
-- **类型**: API | UI | 集成
+- **类型**: UI | E2E
+- **环境**: 测试/预发 URL（真实环境，非 mock）
 - **前置条件**:
-  - 用户已登录 / 游客 session
-  - 商品 SKU-xxx 库存 ≥ N，状态上架
-  - （可选）优惠券 COUPON-xxx 已领取且未使用
+  - 测试账号已准备 / 需脚本登录
+  - 商品链接可访问且库存充足
+  - 支付沙箱账号可用
 - **测试数据**:
   | 字段 | 值 |
   |------|-----|
-  | skuId | |
+  | productUrl | |
   | quantity | |
-  | expectedAmount | |
+  | testUser | |
+  | expectedAmountText | |
 - **步骤**:
-  1. ...
-  2. ...
+  1. 打开商品页 → （按需）关闭 cookie 条
+  2. 点击加购 → 显式等待角标/成功 toast
+  3. ...
+- **弹窗处理点**:
+  | 步骤后 | 可能弹窗 | 处理方式 |
+  |--------|----------|----------|
+  | 提交订单 | 价格变动确认 | 短超时等待，出现则点确认 |
 - **预期结果**:
-  - HTTP 200，业务 code = 0
-  - 购物车 lineItems 数量 = ...
-  - 订单 status = PENDING_PAYMENT
-  - ...
-- **清理**: 删除测试订单 / 恢复库存
-- **自动化备注**: fixture 名称、mock 点、不稳定因素
+  - 购物车角标 = 1
+  - 结算页金额与购物车一致
+  - 支付成功页展示「支付成功」
+- **等待策略**: 显式等待元素 / URL；禁止 sleep
+- **清理**: 取消待支付订单 / 退出登录
+- **自动化备注**: Page 类名、fixture、报告与截图路径
 ```
 
 ## 测试计划总表模板
 
 ```markdown
-# [项目名] 购物车与支付测试计划
+# [项目名] 购物车与支付 UI 测试计划
 
-## 环境
-- Base URL:
-- 支付: 沙箱 / Mock
-- 测试账号:
+## 环境（真实）
+- Base URL: https://test.example.com
+- 支付: 官方沙箱（微信/支付宝测试商户）
+- 测试账号: env 配置
+- 日志: logs/
+- 报告: reports/report.html
+- 失败截图: reports/screenshots/
 
 ## 范围
-- In: 加购、结算、支付回调、订单状态
-- Out: 物流、售后（除非用户指定）
+- In: UI/E2E 加购、结算、真实沙箱支付、订单页断言
+- Out: API 接口测试、mock 支付、物流售后（除非指定）
 
 ## 用例列表
 | ID | 优先级 | 模块 | 标题 | 自动化 |
@@ -50,57 +60,70 @@
 | | | | | Y/N |
 
 ## 风险
-- 支付回调延迟
-- 库存超卖并发
+- 第三方支付页加载慢 → 加长显式等待 timeout
+- 偶发弹窗遮挡 → 步骤级局部处理，非全局扫描
 ```
 
-## API 断言检查表
-
-复制到实现时逐项核对：
+## UI 断言检查表
 
 ```
-响应
-- [ ] status code
-- [ ] 业务 errorCode / message
-- [ ] 响应体关键字段类型与值
+页面加载
+- [ ] 目标 URL 正确
+- [ ] 关键元素显式等待可见
 
 购物车
-- [ ] items[].skuId, quantity, unitPrice, lineTotal
-- [ ] cartTotal 与各 lineTotal 之和一致
+- [ ] 角标数量
+- [ ] 商品行数量、单价、小计文案
+- [ ] 合计金额
 
-订单
-- [ ] orderNo 唯一
-- [ ] totalAmount 与结算页一致
-- [ ] status 符合状态机
+结算
+- [ ] 地址、运费、优惠展示
+- [ ] 应付总额
 
 支付
-- [ ] paymentId 与 orderNo 关联
-- [ ] 重复 notify 不改变终态
+- [ ] 跳转沙箱支付页（URL 或标题）
+- [ ] 完成后回到站点成功态
+
+订单
+- [ ] 订单号展示
+- [ ] 状态文案（待支付/已支付）
+
+失败诊断
+- [ ] 日志文件已写入
+- [ ] 失败截图已保存
+- [ ] HTML/Allure 报告已更新
+```
+
+## 等待策略检查表
+
+```
+- [ ] 未使用 time.sleep（除注明例外）
+- [ ] 已配置隐性默认超时（setup 一次）
+- [ ] 关键步骤使用显式等待（元素/URL/断言）
+- [ ] 支付等等待用 expect/wait_for + 合理 timeout
+- [ ] 弹窗仅在对应步骤后局部等待，无全局弹窗扫描
 ```
 
 ## UI 元素定位建议
 
 优先顺序：`data-testid` > role + name > 稳定 CSS > XPath
 
-常见 testid 命名：
-
 | 区域 | 建议 testid |
 |------|-------------|
 | 加购按钮 | `add-to-cart-btn` |
-| 购物车图标角标 | `cart-badge-count` |
+| 购物车角标 | `cart-badge-count` |
 | 数量输入 | `cart-item-qty-{skuId}` |
 | 去结算 | `checkout-btn` |
 | 提交订单 | `submit-order-btn` |
 | 支付确认 | `pay-confirm-btn` |
+| 价格变动弹窗 | `price-change-dialog` |
+| 支付成功文案 | `payment-success-msg` |
 
-## 订单状态机（参考）
+## 订单状态（UI 展示参考）
 
-测试断言前先确认项目实际枚举：
+通过页面文案或状态标签断言，不通过 API 查询：
 
 ```
-CREATED → PENDING_PAYMENT → PAID → (SHIPPED → COMPLETED)
-                ↓
-            CANCELLED / CLOSED (timeout)
+待支付 → 已支付 → （待发货 → 已完成）
+     ↘ 已取消 / 已关闭
 ```
-
-支付失败通常保持 `PENDING_PAYMENT`；关单后不可再次支付（除非业务允许重新下单）。
