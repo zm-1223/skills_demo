@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>登录 - Demo Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main data-testid="login-page">
+    <div class="card">
+      <h1>登录</h1>
+      <form method="post" action="{{ url_for('login') }}">
+        <p><label>邮箱：<input type="email" name="email" data-testid="login-email" value="test@demo.com"></label></p>
+        <p><label>密码：<input type="password" name="password" data-testid="login-password" value="123456"></label></p>
+        {% if error %}<p class="error" data-testid="login-error">{{ error }}</p>{% endif %}
+        <button type="submit" class="btn" data-testid="login-submit-btn">登录</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

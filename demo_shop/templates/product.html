@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ product.name }} - Demo Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <strong>Demo Shop</strong>
+    <nav>
+      <a href="{{ url_for('index') }}">首页</a>
+      <a href="{{ url_for('cart_view') }}">购物车 <span class="badge" data-testid="cart-badge-count">{{ cart_count }}</span></a>
+    </nav>
+  </header>
+
+  {% if not session.get('cookie_accepted') %}
+  <div class="dialog-overlay" data-testid="cookie-consent">
+    <div class="dialog">
+      <p>本站点使用 Cookie，请确认后继续购物。</p>
+      <form method="post" action="{{ url_for('accept_cookie') }}">
+        <button type="submit" class="btn" data-testid="cookie-accept-btn">同意</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <main data-testid="product-page" data-sku-id="{{ product.sku_id }}">
+    <div class="card">
+      <h1 data-testid="product-name">{{ product.name }}</h1>
+      <p data-testid="product-price">¥{{ '%.2f'|format(product.price) }}</p>
+      <p>库存：{{ product.stock }}</p>
+      <form method="post" action="{{ url_for('cart_add') }}">
+        <input type="hidden" name="sku_id" value="{{ product.sku_id }}">
+        <label>数量：<input type="number" name="quantity" value="1" min="1" data-testid="product-qty-input"></label>
+        <button type="submit" class="btn" data-testid="add-to-cart-btn">加入购物车</button>
+      </form>
+      {% if request.args.get('added') %}
+      <div class="toast" data-testid="add-success-toast">已加入购物车</div>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

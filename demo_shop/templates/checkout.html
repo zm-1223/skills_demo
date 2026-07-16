@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>结算 - Demo Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <strong>Demo Shop</strong>
+    <nav><a href="{{ url_for('cart_view') }}">返回购物车</a></nav>
+  </header>
+
+  {% if show_price_change_dialog %}
+  <div class="dialog-overlay" data-testid="price-change-dialog">
+    <div class="dialog">
+      <p>商品价格已变动，请确认后继续下单。</p>
+      <form method="post" action="{{ url_for('checkout', price_change=1) if price_change_mode else url_for('checkout') }}">
+        <input type="hidden" name="confirm_price_change" value="1">
+        <button type="submit" class="btn" data-testid="confirm-price-change-btn">确认并继续</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <main data-testid="checkout-page">
+    <h1>确认订单</h1>
+    <div class="card">
+      <h2>收货地址</h2>
+      <p data-testid="checkout-address">测试地址 · 北京市朝阳区 Demo 路 1 号</p>
+      <h2>商品明细</h2>
+      <ul>
+        {% for item in items %}
+        <li data-testid="checkout-item-{{ item.sku_id }}">{{ item.name }} x {{ item.quantity }}</li>
+        {% endfor %}
+      </ul>
+      <p data-testid="checkout-subtotal">商品小计：¥{{ '%.2f'|format(cart_total) }}</p>
+      <p data-testid="checkout-shipping">运费：¥{{ '%.2f'|format(shipping) }}</p>
+      <p><strong data-testid="checkout-payable">应付总额：¥{{ '%.2f'|format(payable) }}</strong></p>
+      <form method="post" action="{{ url_for('checkout', price_change=1) if price_change_mode else url_for('checkout') }}">
+        <button type="submit" class="btn" data-testid="submit-order-btn">提交订单</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo Shop - 商品列表</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <strong>Demo Shop</strong>
+    <nav>
+      <a href="{{ url_for('index') }}">首页</a>
+      <a href="{{ url_for('cart_view') }}" data-testid="nav-cart-link">购物车 <span class="badge" data-testid="cart-badge-count">{{ cart_count }}</span></a>
+      <a href="{{ url_for('login') }}" data-testid="nav-login-link">登录</a>
+    </nav>
+  </header>
+  <main data-testid="product-list-page">
+    <h1>商品列表</h1>
+    {% for p in products %}
+    <div class="card">
+      <h2>{{ p.name }}</h2>
+      <p>价格：¥{{ '%.2f'|format(p.price) }} | 库存：{{ p.stock }}</p>
+      <a class="btn" href="{{ url_for('product_detail', sku_id=p.sku_id) }}" data-testid="product-link-{{ p.sku_id }}">查看详情</a>
+    </div>
+    {% endfor %}
+  </main>
+</body>
+</html>

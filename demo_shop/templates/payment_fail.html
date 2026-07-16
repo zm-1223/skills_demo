@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>支付失败 - Demo Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main data-testid="payment-fail-page">
+    <h1 data-testid="payment-fail-msg">支付已取消</h1>
+    <p>订单 {{ order_id }} 仍为待支付，可重新支付</p>
+    <a href="{{ url_for('checkout') }}" data-testid="retry-payment-btn">返回结算</a>
+  </main>
+</body>
+</html>

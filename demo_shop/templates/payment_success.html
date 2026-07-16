@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>支付成功 - Demo Shop</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main data-testid="payment-success-page">
+    <div class="card">
+      <h1 data-testid="payment-success-msg">支付成功</h1>
+      <p>订单 <span data-testid="success-order-id">{{ order_id }}</span> 已支付</p>
+      <a href="{{ url_for('index') }}" class="btn" data-testid="back-home-btn">返回首页</a>
+    </div>
+  </main>
+</body>
+</html>

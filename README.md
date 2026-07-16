@@ -1,49 +1,128 @@
 # skills_demo
 
-Cursor Agent Skills 示例仓库。
+Cursor Agent Skills 示例仓库，内含 **UI + 接口双层可运行** 的电商自动化测试工程。
 
-## 已包含 Skills
+## 快速开始
 
-### ecommerce-cart-payment-tests
+### 1. 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. 启动演示站点（终端 1）
+
+```bash
+python run_server.py
+```
+
+- 浏览器 UI：http://127.0.0.1:5000
+- REST API：http://127.0.0.1:5000/api/v1
+- 测试账号：`test@demo.com` / `123456`
+
+### 3. 运行测试（终端 2）
+
+```bash
+pytest                  # UI + API 全部
+pytest -m api           # 仅接口（无需浏览器，速度快）
+pytest -m ui            # 仅 UI E2E
+```
+
+### 4. 查看结果
+
+| 类型 | 路径 |
+|------|------|
+| HTML 报告 | `reports/report.html` |
+| 运行日志 | `logs/test_*.log` |
+| UI 失败截图 | `reports/screenshots/` |
+
+环境变量见 `.env.example`。
+
+## 项目结构
+
+```
+skills_demo/
+├── demo_shop/
+│   ├── app.py                 # UI 路由
+│   ├── api_routes.py          # REST API /api/v1/*
+│   └── common.py              # UI/API 共享业务逻辑
+├── tests/
+│   ├── conftest.py            # 全局日志
+│   ├── api/                   # 接口测试（pytest + requests）
+│   │   ├── test_cart_api.py
+│   │   └── test_order_payment_api.py
+│   ├── e2e/                   # UI 测试（pytest + Selenium）
+│   │   ├── test_cart.py
+│   │   └── test_checkout_payment.py
+│   ├── clients/shop_api_client.py
+│   └── pages/                 # Page Object
+├── .cursor/skills/ecommerce-cart-payment-tests/
+├── pytest.ini
+└── run_server.py
+```
+
+## 双层测试策略
+
+| 层级 | 技术 | 职责 |
+|------|------|------|
+| **接口** | pytest + requests | 业务逻辑、契约、边界、幂等、快速回归 |
+| **UI** | pytest + Selenium | 用户路径、页面交互、弹窗、沙箱支付页 |
+
+## Cursor Skill
 
 路径：`.cursor/skills/ecommerce-cart-payment-tests/`
 
-用于设计与编写**电商平台购物车、结算、支付**相关的 **UI/E2E 自动化**测试用例与脚本。当对话涉及购物车、结算、支付、下单或电商购物流程测试时，Agent 会自动参考该 Skill。
+约定摘要：
 
-**目录结构：**
+- **测试范围矩阵**与各模块清单（设计用例必读，见 SKILL.md）
+- UI + API 双层，真实环境，禁止 mock
+- API：`ShopApiClient` + session 隔离 + `code/data` 断言
+- UI：显式/隐性等待、按需弹窗、失败截图
+- 自动 HTML 报告与日志
 
-```
-.cursor/skills/ecommerce-cart-payment-tests/
-├── SKILL.md                 # 主指令：UI/E2E、等待、弹窗、日志、报告
-├── test-case-template.md    # 单条用例与 UI 断言模板
-└── examples.md              # Playwright/Selenium 与 conftest 示例
-```
+## 用例一览
 
-**使用方式：**
+### 接口（API-*）
 
-1. 在 Cursor 中打开本仓库，Skill 作为项目级 Skill 生效
-2. 在对话中描述需求，例如：
-   - 「帮我设计购物车 UI 测试用例」
-   - 「写从加购到沙箱支付成功的 Playwright E2E」
-   - 「失败自动截图和 pytest-html 报告怎么配」
-
-**Skill 核心约定：**
-
-| 项 | 说明 |
+| ID | 说明 |
 |----|------|
-| 测试类型 | 仅 UI/E2E，不含 API 测试 |
-| 环境 | 真实测试/预发环境 + 官方支付沙箱，不用 mock |
-| 等待 | 显式等待为主、隐性超时兜底，禁止 sleep |
-| 弹窗 | 步骤级局部处理，禁止全局扫描关闭 |
-| 日志 | 自动生成 `logs/test_*.log` |
-| 报告 | pytest-html / Allure + 失败截图 `reports/screenshots/` |
+| API-CART-001~005 | 加购、合并、超库存、删除、改数量 |
+| API-CHK-001~002 | 下单、空车失败 |
+| API-PAY-001~003 | 支付成功、取消、幂等 |
+| API-AUTH-001~002 | 登录成功/失败 |
 
-**覆盖范围：**
+### UI（CART/CHK/PAY/AUTH-*）
 
-- 购物车：加购、改数量、删除、合并、库存边界
-- 结算：地址、运费、优惠券、积分、金额展示
-- 支付：真实沙箱跳转、成功/失败/取消
-- 订单：支付后页面状态展示
+| ID | 说明 |
+|----|------|
+| CART-001~004 | 加购、累加、改数量、删除 |
+| CHK-001~002 | 结算金额、价格变动弹窗 |
+| PAY-001~002 | 支付成功、取消 |
+| AUTH-001 | 登录 |
+
+## API 端点
+
+```
+POST   /api/v1/auth/login
+GET    /api/v1/products
+GET    /api/v1/cart
+POST   /api/v1/cart/items
+PUT    /api/v1/cart/items/{sku}
+DELETE /api/v1/cart/items/{sku}
+POST   /api/v1/orders/checkout
+GET    /api/v1/orders/{id}
+POST   /api/v1/payment/confirm
+```
+
+## 常用命令
+
+```bash
+pytest -m api               # 仅接口
+pytest -m ui                # 仅 UI
+pytest -m cart              # 两层购物车
+pytest -m payment           # 两层支付
+HEADLESS=true pytest -m ui  # UI 无头
+```
 
 ## 本地开发
 
