@@ -37,6 +37,12 @@
   |--------|------|------|
   | 提交订单 | 价格变动 | 局部等待并确认 |
 - **清理**: clear_cart / 取消订单
+- **POM（UI 必填）**:
+  | 字段 | 值 |
+  |------|-----|
+  | Page 类 | ProductPage / CartPage / ... |
+  | 编排方法 | open_product → add_to_cart → ... |
+  | 断言位置 | test 层 assert，Page 只返回值 |
 ```
 
 ## 测试计划总表
@@ -60,6 +66,18 @@
 |----|--------|------|------|-----|-----|
 | API-CART-001 | P0 | 购物车 | 加购 | Y | — |
 | CART-001 | P0 | 购物车 | 加购角标 | — | Y |
+```
+
+## POM 检查表（UI 用例）
+
+```
+- [ ] locator 全部在 tests/pages/ 内
+- [ ] test_*.py 无 find_element / By / WebDriverWait
+- [ ] Page 继承 BasePage，一页面一文件
+- [ ] Page 方法名体现业务动作
+- [ ] 显式等待在 Page 方法内，不在 test 内
+- [ ] assert 在 test 层；Page 返回待断言数据
+- [ ] 弹窗由 Page 步骤后调用 PopupHelper
 ```
 
 ## API 断言检查表

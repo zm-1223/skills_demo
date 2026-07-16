@@ -55,7 +55,7 @@ skills_demo/
 │   │   ├── test_cart.py
 │   │   └── test_checkout_payment.py
 │   ├── clients/shop_api_client.py
-│   └── pages/                 # Page Object
+│   └── pages/                 # POM Page Object（UI 强制）
 ├── .cursor/skills/ecommerce-cart-payment-tests/
 ├── pytest.ini
 └── run_server.py
@@ -76,6 +76,7 @@ skills_demo/
 
 - **测试范围矩阵**与各模块清单（设计用例必读，见 SKILL.md）
 - UI + API 双层，真实环境，禁止 mock
+- **POM 强制**：UI 定位与操作只在 `tests/pages/`，test 只编排与断言
 - API：`ShopApiClient` + session 隔离 + `code/data` 断言
 - UI：显式/隐性等待、按需弹窗、失败截图
 - 自动 HTML 报告与日志

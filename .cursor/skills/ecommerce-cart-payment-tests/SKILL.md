@@ -2,8 +2,8 @@
 name: ecommerce-cart-payment-tests
 description: >-
   电商购物车、结算、支付的 UI + 接口双层自动化测试（pytest + Selenium + requests）。
-  含可运行 demo_shop、REST API、E2E 与 API 用例，支持等待策略、日志、HTML 报告与失败截图。
-  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, API test,
+  含可运行 demo_shop、REST API、E2E 与 API 用例，POM 页面对象、等待策略、日志、HTML 报告与失败截图。
+  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, POM, Page Object,
   购物车, 结算, 支付, UI自动化, 接口测试, E2E.
 ---
 
@@ -156,7 +156,7 @@ pytest tests/e2e/       # 指定目录
 2. **先判断层级** — 逻辑/契约 → API；页面/交互 → UI；关键场景 → 两层各一条
 3. **真实环境** — 连 demo_shop 或测试/预发 URL；禁止 mock 接口
 4. **接口** — `ShopApiClient` + session 隔离 + 断言 HTTP + `code` + `data`
-5. **UI** — Page Object + 显式/隐性等待 + 按需弹窗 + 失败截图
+5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图
 
 ## 接口测试规范
 
@@ -189,6 +189,83 @@ assert cart["item_count"] == 1
 - 结算/支付/登录 API → `tests/api/test_order_payment_api.py`
 - Client → `tests/clients/shop_api_client.py`
 
+## POM 设计模式（UI 强制）
+
+所有 UI/E2E 测试 **必须** 采用 **Page Object Model（POM）**：页面元素与操作封装在 Page 类，测试用例只编排业务流程与断言。
+
+### 目录与继承
+
+```
+tests/pages/
+├── base_page.py       # 基类：driver、wait、open、通用定位
+├── product_page.py    # 一页面/File
+├── cart_page.py
+├── checkout_page.py
+├── payment_page.py
+└── login_page.py
+```
+
+- 每个 Page **继承** `BasePage`
+- **一个页面（或紧密相关的一组视图）对应一个 Page 类、一个 `.py` 文件**
+- 类名：`XxxPage`；文件名：`xxx_page.py`（小写蛇形）
+
+### 职责划分
+
+| 层级 | 目录 | 职责 | 禁止 |
+|------|------|------|------|
+| **Page** | `tests/pages/` | 定位器、页面操作、显式等待、步骤日志 | 业务断言、跨页面流程编排 |
+| **Test** | `tests/e2e/` | 调用 Page 方法、组织场景、assert 结果 | 直接 `driver.find_element`、硬编码 locator |
+| **Helper** | `tests/utils/` | 跨页通用能力（WaitHelper、PopupHelper） | 页面特有业务操作 |
+| **Client** | `tests/clients/` | API 封装（接口层，非 POM） | UI 定位与操作 |
+
+### Page 类编写规则
+
+1. **定位器内聚**：所有 `data-testid` / CSS / XPath 只在 Page 内出现，不泄露到 `test_*.py`
+2. **方法语义化**：方法名用业务动词，如 `add_to_cart()`、`go_checkout()`，不用 `click_btn_1()`
+3. **操作自带等待**：点击/输入前在 Page 方法内做显式等待（通过 `self.wait`），测试层不再重复等待
+4. **弹窗在步骤后处理**：在触发弹窗的 Page 方法末尾调用 `PopupHelper`（按需局部），不在 test 或 conftest 全局处理
+5. **返回值**：需要断言时返回文本/状态（如 `get_badge_count()`），由 **test 层 assert**
+6. **日志**：每个公开操作方法写 `logger.info`，便于与 `logs/` 对照
+7. **PATH 常量**：固定路由可定义 `PATH = "/cart"`，用 `self.open(self.PATH)` 导航
+
+### 测试层编写规则
+
+```python
+# ✅ 正确：test 只编排 Page + 断言
+def test_cart_add_item_shows_badge_count_one(self, driver, log_test_name):
+    product = ProductPage(driver)
+    product.open_product(Config.DEFAULT_SKU)
+    product.add_to_cart(quantity=1)
+    assert product.get_badge_count() == "1"
+
+# ❌ 错误：locator 与 WebDriver 操作写在 test 里
+def test_bad(self, driver):
+    driver.find_element(By.CSS_SELECTOR, "[data-testid='add-to-cart-btn']").click()
+```
+
+- 一个 test 方法 = 一个业务场景；可组合多个 Page，但 **不跨 3 个以上页面仍不写 Page 方法**
+- 需要登录前置时，用 `LoginPage(driver).login(...)` 或 fixture 封装，不在 test 内填表
+
+### 本仓库 Page 映射
+
+| Page 类 | 文件 | 对应页面 |
+|---------|------|----------|
+| `ProductPage` | `product_page.py` | 商品详情 |
+| `CartPage` | `cart_page.py` | 购物车 |
+| `CheckoutPage` | `checkout_page.py` | 结算 |
+| `PaymentPage` | `payment_page.py` | 支付沙箱 / 成功 / 失败 |
+| `LoginPage` | `login_page.py` | 登录 |
+
+新增页面时：**先建 Page → 再写 test**，顺序不可颠倒。
+
+### POM 反模式
+
+- 在 `tests/e2e/test_*.py` 中出现 `By.`、`find_element`、`WebDriverWait`
+- 同一 locator 在多个 Page/test 重复定义
+- Page 方法内写 `assert`（除「等待即断言」的显式等待外）
+- 一个 Page 类超过 ~150 行不拆分（按 Tab/区域拆 `CheckoutPage`、`PaymentPage`）
+- 用 Page 类做 API 请求（API 用 `ShopApiClient`）
+
 ## UI 测试规范
 
 ### 命名
@@ -209,9 +286,9 @@ assert cart["item_count"] == 1
 
 ### 文件布局
 
-- UI 购物车 → `tests/e2e/test_cart.py`
-- UI 结算/支付 → `tests/e2e/test_checkout_payment.py`
-- Page → `tests/pages/`
+- UI 购物车 → `tests/e2e/test_cart.py`（只调 `ProductPage` / `CartPage`）
+- UI 结算/支付 → `tests/e2e/test_checkout_payment.py`（只调各 Page）
+- Page → `tests/pages/`（见 **POM 设计模式**）
 
 ## 用例 ID 对照
 
@@ -252,6 +329,7 @@ assert cart["item_count"] == 1
 - API 与 UI 共用同一 session 导致串扰
 - UI 使用 sleep；API 无业务 code 断言
 - UI 失败无截图；无日志文件
+- **违反 POM**：test 中直接操作 WebDriver / 写 locator
 
 ## 附加资源
 

@@ -21,9 +21,30 @@ tests/
     conftest.py       # driver、失败截图
     test_cart.py
     test_checkout_payment.py
-  pages/              # UI Page Object
+  pages/              # POM Page Object（UI 强制）
   utils/              # config、wait、popup
 ```
+
+## POM 示例
+
+```python
+# tests/pages/cart_page.py — Page 封装操作
+class CartPage(BasePage):
+    PATH = "/cart"
+    def go_checkout(self):
+        by, loc = WaitHelper.by_testid("checkout-btn")
+        self.wait.until_clickable(by, loc).click()
+        self.wait.until_url_contains("/checkout")
+
+# tests/e2e/test_cart.py — test 只编排 + 断言
+def test_xxx(self, driver, log_test_name):
+    cart = CartPage(driver)
+    cart.open_cart()
+    cart.go_checkout()
+    assert "/checkout" in driver.current_url
+```
+
+完整 POM 规则见 [SKILL.md](SKILL.md) **POM 设计模式** 章节。
 
 ## 用例对照表
 
@@ -83,5 +104,5 @@ def test_cart_add_item_shows_badge_count_one(self, driver, log_test_name):
 | 需求 | 操作 |
 |------|------|
 | 新 API | `api_routes.py` 加路由 + `ShopApiClient` 加方法 + `tests/api/` 加用例 |
-| 新 UI 页 | `tests/pages/` 加 Page + `tests/e2e/` 加用例 |
+| 新 UI 页 | **先** `tests/pages/xxx_page.py`（POM）→ **再** `tests/e2e/` 加用例 |
 | 新 marker | `pytest.ini` 注册 |
