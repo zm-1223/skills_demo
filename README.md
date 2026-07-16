@@ -28,13 +28,21 @@ pytest -m api           # 仅接口（无需浏览器，速度快）
 pytest -m ui            # 仅 UI E2E
 ```
 
-### 4. 查看结果
+### 4. 查看 Allure 报告
+
+```bash
+python generate_allure_report.py
+```
 
 | 类型 | 路径 |
 |------|------|
-| HTML 报告 | `reports/report.html` |
+| **单文件 HTML（浏览器直接打开）** | `reports/allure-report-complete.html` |
+| Allure 站点 | `reports/allure-report/index.html` |
+| 原始结果 | `reports/allure-results/` |
 | 运行日志 | `logs/test_*.log` |
-| UI 失败截图 | `reports/screenshots/` |
+| UI 失败截图 | `reports/screenshots/`（并 attach 到 Allure） |
+
+需安装 Allure CLI：`scoop install allure`（Windows）或见 [官方文档](https://allurereport.org/docs/install/)。
 
 环境变量见 `.env.example`。
 
@@ -58,6 +66,7 @@ skills_demo/
 │   └── pages/                 # POM Page Object（UI 强制）
 ├── .cursor/skills/ecommerce-cart-payment-tests/
 ├── pytest.ini
+├── generate_allure_report.py  # Allure HTML 生成
 └── run_server.py
 ```
 
@@ -78,6 +87,7 @@ skills_demo/
 - UI + API 双层，真实环境，禁止 mock
 - **POM 强制**：UI 定位与操作只在 `tests/pages/`，test 只编排与断言
 - **重试**：UI 偶发 flaky 用 `pytest-rerunfailures`；API 业务失败不重试
+- **Allure 报告**：pytest → `generate_allure_report.py` → `allure-report-complete.html` 浏览器打开
 - **不含**：性能/压力/负载/benchmark 测试
 - API：`ShopApiClient` + session 隔离 + `code/data` 断言
 - UI：显式/隐性等待、按需弹窗、失败截图
@@ -120,6 +130,8 @@ POST   /api/v1/payment/confirm
 ## 常用命令
 
 ```bash
+pytest
+python generate_allure_report.py   # 生成 HTML 报告
 pytest -m api               # 仅接口
 pytest -m ui                # 仅 UI
 pytest -m cart              # 两层购物车

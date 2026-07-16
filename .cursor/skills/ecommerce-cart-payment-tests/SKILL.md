@@ -2,8 +2,8 @@
 name: ecommerce-cart-payment-tests
 description: >-
   电商购物车、结算、支付的 UI + 接口双层自动化测试（pytest + Selenium + requests）。
-  含可运行 demo_shop、REST API、E2E 与 API 用例，POM、重试机制、等待策略、日志、HTML 报告与失败截图。
-  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, POM, retry, flaky,
+  含可运行 demo_shop、REST API、E2E 与 API 用例，POM、重试、Allure 报告、日志与失败截图。
+  Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, allure, POM, retry,
   购物车, 结算, 支付, UI自动化, 接口测试, E2E.
 ---
 
@@ -103,6 +103,7 @@ skills_demo/
 │   └── utils/
 ├── pytest.ini
 ├── requirements.txt
+├── generate_allure_report.py   # 生成浏览器可打开的 Allure HTML
 └── run_server.py
 ```
 
@@ -115,24 +116,40 @@ pip install -r requirements.txt
 python run_server.py
 ```
 
-**终端 2 — 运行测试：**
+**终端 2 — 运行测试并生成 Allure 报告：**
 
 ```bash
-pytest                  # UI + API 全部
+pytest                  # 写入 reports/allure-results（pytest.ini 已配置）
+python generate_allure_report.py   # 生成浏览器可打开的 HTML
+```
+
+仅跑部分用例：
+
+```bash
 pytest -m api           # 仅接口
 pytest -m ui            # 仅 UI
-pytest -m "api and cart"  # 接口购物车
-pytest tests/api/       # 指定目录
-pytest tests/e2e/       # 指定目录
+pytest -m "api and cart"
 ```
+
+**浏览器打开报告（任选其一）：**
+
+| 方式 | 路径 | 说明 |
+|------|------|------|
+| **单文件 HTML（推荐）** | `reports/allure-report-complete.html` | 双击或用浏览器打开，便于分享 |
+| Allure 站点 | `reports/allure-report/index.html` | 多文件静态站 |
+| 在线预览 | `allure open reports/allure-report` | 需已安装 Allure CLI |
+
+**前置：** 生成 HTML 需安装 [Allure 命令行](https://allurereport.org/docs/install/)（如 `scoop install allure`）。`pip install -r requirements.txt` 已含 `allure-pytest`、`allure-combine`。
 
 **产出物：**
 
 | 产出 | 路径 | 适用 |
 |------|------|------|
-| HTML 报告 | `reports/report.html` | UI + API |
+| Allure 原始结果 | `reports/allure-results/` | pytest 直接产出 |
+| Allure HTML 站点 | `reports/allure-report/index.html` | generate 脚本 |
+| **单文件 HTML** | `reports/allure-report-complete.html` | **浏览器直接打开** |
 | 日志 | `logs/test_*.log` | UI + API |
-| 失败截图 | `reports/screenshots/` | 仅 UI 失败 |
+| 失败截图 | `reports/screenshots/` + Allure 附件 | UI 失败 |
 
 ## REST API 清单（demo_shop）
 
@@ -158,7 +175,8 @@ pytest tests/e2e/       # 指定目录
 2. **先判断层级** — 逻辑/契约 → API；页面/交互 → UI；关键场景 → 两层各一条
 3. **真实环境** — 连 demo_shop 或测试/预发 URL；禁止 mock 接口
 4. **接口** — `ShopApiClient` + session 隔离 + 断言 HTTP + `code` + `data`
-5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图 + 偶发 flaky 时用例级重试
+5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图 attach 到 Allure
+6. **报告** — pytest 写 `allure-results` → `generate_allure_report.py` 生成可浏览器打开的 HTML
 
 ## 接口测试规范
 
@@ -345,8 +363,8 @@ def test_full_checkout_payment_success(self, driver, log_test_name):
 ### 日志与报告
 
 - 重试发生时必须在日志中可见（pytest-rerunfailures 会输出 `RERUN`）
-- HTML 报告保留 **最终** 结果；若最终通过但曾失败，在 PR/说明中标注为 flaky 并建 issue 修根因
-- 失败截图：以 **最后一次失败** 为准（已有 `screenshot_on_failure`）
+- Allure 报告保留 **最终** 结果；若最终通过但曾失败，标注 flaky 并修根因
+- 失败截图 attach 到 Allure，并保存到 `reports/screenshots/`
 
 ### 重试反模式
 
@@ -354,6 +372,65 @@ def test_full_checkout_payment_success(self, driver, log_test_name):
 - 对 API 业务错误（库存不足、code≠0）重试
 - 用重试替代显式等待或修复 locator
 - 不记录 flaky 用例、不跟进根因
+
+## Allure 报告（强制）
+
+默认使用 **Allure** 生成测试报告，**必须**产出可用浏览器打开的 HTML 文件。
+
+### 流程（两步）
+
+```bash
+# 1. 跑用例，收集结果（pytest.ini 默认 --alluredir=reports/allure-results）
+pytest
+
+# 2. 生成 HTML（站点 + 单文件）
+python generate_allure_report.py
+```
+
+### pytest 配置
+
+`pytest.ini` 默认：
+
+```ini
+addopts = -v --alluredir=reports/allure-results --clean-alluredir
+```
+
+依赖：`allure-pytest`、`allure-combine`（见 `requirements.txt`）
+
+### 浏览器可打开的 HTML
+
+| 文件 | 用途 |
+|------|------|
+| `reports/allure-report-complete.html` | **单文件**，双击打开、发邮件/归档 |
+| `reports/allure-report/index.html` | 多文件 Allure 站（需同目录资源） |
+
+生成逻辑：`allure generate` → `allure-combine` → 复制为 `allure-report-complete.html`
+
+### 附件（失败诊断）
+
+| 类型 | 来源 | Allure 附件名 |
+|------|------|---------------|
+| UI 失败截图 | `tests/e2e/conftest.py` | `failure_screenshot` |
+| API 最后响应 | `tests/api/conftest.py` | `last_api_response` |
+
+用例内可补充：
+
+```python
+import allure
+
+@allure.feature("购物车")
+@allure.story("加购")
+def test_xxx(...):
+    with allure.step("打开商品页"):
+        product.open_product(sku)
+```
+
+### Allure 反模式
+
+- 只用 pytest-html、不用 Allure（与本 Skill 冲突）
+- 跑完 pytest 不执行 `generate_allure_report.py`，无 HTML 可看
+- 失败无 attach（无截图/无响应体）
+- 把 `allure-results` 当最终报告（JSON 不能直接给业务方看）
 
 ## 用例 ID 对照
 
@@ -387,7 +464,7 @@ def test_full_checkout_payment_success(self, driver, log_test_name):
 1. 改 `BASE_URL` / `API_PREFIX`
 2. 扩展 `ShopApiClient` 方法对齐真实 API
 3. 改 Page 内 `data-testid`
-4. 保留：全局日志、pytest-html、UI 失败截图、API session 隔离
+4. 保留：全局日志、**Allure 报告**、UI/API 失败 Allure 附件、API session 隔离
 
 ## 反模式
 
@@ -395,7 +472,8 @@ def test_full_checkout_payment_success(self, driver, log_test_name):
 - mock/stub 接口或支付
 - API 与 UI 共用同一 session 导致串扰
 - UI 使用 sleep；API 无业务 code 断言
-- UI 失败无截图；无日志文件
+- UI 失败无截图、无 Allure attach；无日志文件
+- 只生成 allure-results、不生成 HTML 报告
 - **违反 POM**：test 中直接操作 WebDriver / 写 locator
 - **滥用重试**：掩盖稳定失败、对 API 业务错误重试
 - **性能测试**：本 Skill 不包含压测/负载/benchmark（见范围外说明）

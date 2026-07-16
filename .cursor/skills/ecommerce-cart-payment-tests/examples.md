@@ -61,6 +61,25 @@ pytest -m ui --reruns 2 --reruns-delay 1
 
 规则见 [SKILL.md](SKILL.md) **重试机制**；**不包含**性能/压力测试。
 
+## Allure 报告示例
+
+```bash
+pytest
+python generate_allure_report.py
+# 浏览器打开 reports/allure-report-complete.html
+```
+
+```python
+import allure
+
+@allure.feature("支付")
+class TestPaymentFlow:
+    @allure.story("支付成功")
+    def test_full_checkout_payment_success(self, driver, log_test_name):
+        with allure.step("加购并结算"):
+            ...
+```
+
 ## 用例对照表
 
 | ID | 层 | 文件 | 说明 |
@@ -77,7 +96,8 @@ pytest -m ui --reruns 2 --reruns-delay 1
 ```bash
 python run_server.py          # 先启动服务
 
-pytest                        # 全部
+pytest                        # 全部，写入 allure-results
+python generate_allure_report.py   # 生成 HTML，浏览器打开 allure-report-complete.html
 pytest -m api                 # 仅接口（无需浏览器）
 pytest -m ui                  # 仅 UI
 pytest -m ui --reruns 2 --reruns-delay 1   # UI 偶发失败重试

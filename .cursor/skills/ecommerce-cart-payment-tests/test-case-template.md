@@ -54,8 +54,9 @@
 - Base URL: https://test.example.com
 - API: /api/v1
 - 日志: logs/
-- 报告: reports/report.html
-- UI 失败截图: reports/screenshots/
+- Allure 单文件 HTML: reports/allure-report-complete.html
+- Allure 站点: reports/allure-report/index.html
+- UI 失败截图: reports/screenshots/ + Allure 附件
 
 ## 范围
 - In: API 契约 + UI 关键路径 + 真实沙箱支付 + 偶发 flaky 用例级重试
@@ -122,7 +123,9 @@
 - [ ] 显式等待关键元素
 - [ ] 角标/金额/订单文案
 - [ ] 沙箱支付页跳转与回站
-- [ ] 失败截图 + 日志 + HTML 报告
+- [ ] 失败截图/响应 attach 到 Allure
+- [ ] 日志已写入 logs/
+- [ ] 已运行 generate_allure_report.py，HTML 可浏览器打开
 ```
 
 ## 等待策略（UI）

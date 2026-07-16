@@ -7,6 +7,8 @@ from pathlib import Path  # 标准库：目录
 def _ensure_dirs():  # 自定义：创建 logs/reports 目录
     Path("logs").mkdir(exist_ok=True)  # 标准库
     Path("reports/screenshots").mkdir(parents=True, exist_ok=True)  # 标准库
+    Path("reports/allure-results").mkdir(parents=True, exist_ok=True)  # 标准库：Allure 原始结果
+    Path("reports/allure-report").mkdir(parents=True, exist_ok=True)  # 标准库：Allure 静态 HTML 站
 
 
 def pytest_configure(config):  # 框架 hook：pytest 启动时配置日志（来源 pytest）

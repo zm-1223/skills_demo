@@ -1,7 +1,8 @@
-# tests/e2e/conftest.py — UI 测试 fixture：WebDriver、失败截图（日志在 tests/conftest.py）
+# tests/e2e/conftest.py — UI 测试 fixture：WebDriver、失败截图、Allure 附件（日志在 tests/conftest.py）
 import logging  # 标准库
 from pathlib import Path  # 标准库
 
+import allure  # 第三方：Allure 报告附件 API，来源 allure-pytest
 import pytest  # 框架：pytest
 from selenium import webdriver  # 框架：Selenium WebDriver
 from selenium.webdriver.chrome.options import Options  # 框架：Chrome 选项
@@ -49,6 +50,11 @@ def screenshot_on_failure(request):  # 自定义
             path = Path("reports/screenshots") / f"{request.node.name}.png"  # 自定义
             browser.save_screenshot(str(path))  # 框架调用
             logger.error("UI 用例失败，截图: %s", path)  # 自定义
+            allure.attach.file(  # 第三方：失败截图 attach 到 Allure
+                str(path),
+                name="failure_screenshot",
+                attachment_type=allure.attachment_type.PNG,
+            )
 
 
 @pytest.fixture  # 框架

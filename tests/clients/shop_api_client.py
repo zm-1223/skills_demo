@@ -15,6 +15,7 @@ class ShopApiClient:  # 自定义：封装 /api/v1 接口调用
         self.base_url = (base_url or Config.BASE_URL).rstrip("/")  # 自定义：根 URL
         self.api_prefix = f"{self.base_url}/api/v1"  # 自定义：API 前缀
         self.session = requests.Session()  # 第三方：可复用 cookie 的 Session
+        self.last_response = None  # 自定义：最近一次响应，供 Allure 失败附件
 
     def _url(self, path):  # 自定义：拼完整 URL
         return f"{self.api_prefix}{path}"  # 自定义返回
@@ -23,6 +24,7 @@ class ShopApiClient:  # 自定义：封装 /api/v1 接口调用
         url = self._url(path)  # 自定义
         logger.info("API %s %s body=%s", method, url, kwargs.get("json"))  # 自定义日志
         resp = self.session.request(method, url, timeout=kwargs.pop("timeout", 30), **kwargs)  # 第三方：发请求
+        self.last_response = resp  # 自定义：供 Allure 失败附件读取
         logger.info("API 响应 status=%s body=%s", resp.status_code, resp.text[:500])  # 自定义：截断日志
         return resp  # 自定义返回 Response
 
