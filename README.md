@@ -65,6 +65,9 @@ skills_demo/
 │   ├── clients/shop_api_client.py
 │   └── pages/                 # POM Page Object（UI 强制）
 ├── .cursor/skills/ecommerce-cart-payment-tests/
+│   ├── SKILL.md
+│   ├── case.md                # 用例范围、数量、前置、数据
+│   └── ...
 ├── pytest.ini
 ├── generate_allure_report.py  # Allure HTML 生成
 └── run_server.py
@@ -83,15 +86,13 @@ skills_demo/
 
 约定摘要：
 
-- **测试范围矩阵**与各模块清单（设计用例必读，见 SKILL.md）
+- **测试范围矩阵**与 [case.md](case.md)（用例数量、前置、数据）
 - UI + API 双层，真实环境，禁止 mock
-- **POM 强制**：UI 定位与操作只在 `tests/pages/`，test 只编排与断言
-- **重试**：UI 偶发 flaky 用 `pytest-rerunfailures`；API 业务失败不重试
+- **POM 强制** / **Token 复用** / **flaky(reruns=2, reruns_delay=1)**
 - **Allure 报告**：pytest → `generate_allure_report.py` → `allure-report-complete.html` 浏览器打开
 - **不含**：性能/压力/负载/benchmark 测试
-- API：`ShopApiClient` + session 隔离 + `code/data` 断言
-- UI：显式/隐性等待、按需弹窗、失败截图
-- 自动 HTML 报告与日志
+- API：`ShopApiClient` + **auth_token 复用** + `code/data` 断言
+- UI：POM、显式/隐性等待、按需弹窗、Allure 失败截图
 
 ## 用例一览
 
@@ -136,7 +137,7 @@ pytest -m api               # 仅接口
 pytest -m ui                # 仅 UI
 pytest -m cart              # 两层购物车
 pytest -m payment           # 两层支付
-pytest -m ui --reruns 2 --reruns-delay 1   # UI 偶发失败重试
+pytest -m ui                # 仅 UI（含 flaky 重试）
 HEADLESS=true pytest -m ui  # UI 无头
 ```
 

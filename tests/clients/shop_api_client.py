@@ -16,6 +16,7 @@ class ShopApiClient:  # 自定义：封装 /api/v1 接口调用
         self.api_prefix = f"{self.base_url}/api/v1"  # 自定义：API 前缀
         self.session = requests.Session()  # 第三方：可复用 cookie 的 Session
         self.last_response = None  # 自定义：最近一次响应，供 Allure 失败附件
+        self.auth_token = None  # 自定义：登录态逻辑标识（session cookie 在 self.session 中）
 
     def _url(self, path):  # 自定义：拼完整 URL
         return f"{self.api_prefix}{path}"  # 自定义返回
@@ -30,7 +31,16 @@ class ShopApiClient:  # 自定义：封装 /api/v1 接口调用
 
     def login(self, email=None, password=None):  # 自定义：POST /auth/login
         payload = {"email": email or Config.TEST_USER, "password": password or Config.TEST_PASSWORD}  # 自定义
-        return self._request("POST", "/auth/login", json=payload)  # 自定义调用 _request
+        resp = self._request("POST", "/auth/login", json=payload)  # 自定义调用 _request
+        if resp.status_code == 200 and resp.json().get("code") == 0:  # 自定义：登录成功则记录 token 标识
+            self.auth_token = resp.json()["data"].get("email")  # 自定义：逻辑 token（session cookie 已由 Session 保存）
+        return resp  # 自定义返回
+
+    def reuse_auth_from(self, other):  # 自定义：从已登录 client 复用 session/token
+        """复制对方 Session 的 cookie，避免重复 login。"""  # 自定义文档
+        self.session.cookies.update(other.session.cookies.get_dict())  # 第三方：复制 cookie jar
+        self.auth_token = getattr(other, "auth_token", None)  # 自定义：复制逻辑 token 标记
+        logger.info("复用 auth token/session: %s", self.auth_token)  # 自定义日志
 
     def list_products(self):  # 自定义：GET /products
         return self._request("GET", "/products")  # 自定义

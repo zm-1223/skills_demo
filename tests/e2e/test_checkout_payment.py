@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)  # 标准库
 
 @pytest.mark.ui  # 框架 marker：UI 层
 @pytest.mark.checkout  # 框架 marker
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # 框架+插件：UI 重试机制（Skill 强制）
 class TestCheckout:  # 自定义：结算相关
 
     def test_checkout_payable_matches_cart_total_with_shipping(self, driver, log_test_name):  # 框架
@@ -33,9 +34,9 @@ class TestCheckout:  # 自定义：结算相关
 
 @pytest.mark.ui  # 框架 marker：UI 层
 @pytest.mark.payment  # 框架 marker
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # 框架+插件：UI 重试机制（Skill 强制）
 class TestPaymentFlow:  # 自定义：支付全流程
 
-    @pytest.mark.flaky(reruns=2, reruns_delay=1)  # 框架+插件：偶发 flaky 时重试，见 Skill 重试机制
     def test_full_checkout_payment_success(self, driver, log_test_name):  # 框架
         """PAY-001: 加购→结算→沙箱支付成功"""  # 自定义 P0 主路径
         product = ProductPage(driver)  # 自定义
@@ -85,6 +86,7 @@ class TestPaymentFlow:  # 自定义：支付全流程
 
 @pytest.mark.ui  # 框架 marker：UI 层
 @pytest.mark.login  # 框架 marker
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # 框架+插件：UI 重试机制（Skill 强制）
 class TestLogin:  # 自定义：登录
 
     def test_login_success(self, driver, log_test_name):  # 框架

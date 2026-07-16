@@ -1,6 +1,6 @@
 # 示例索引（UI + 接口双层）
 
-设计新用例时先对照 [SKILL.md](SKILL.md) **测试范围矩阵**，再查下表已实现用例。
+设计新用例时先对照 [SKILL.md](SKILL.md) **测试范围矩阵** 与 [case.md](case.md)。
 
 ## 工程结构
 
@@ -50,16 +50,20 @@ def test_xxx(self, driver, log_test_name):
 
 ```python
 @pytest.mark.ui
-@pytest.mark.flaky(reruns=2, reruns_delay=1)
-def test_full_checkout_payment_success(self, driver, log_test_name):
-    ...
+@pytest.mark.flaky(reruns=2, reruns_delay=1)  # Skill 强制：加在 UI 测试类上
+class TestPaymentFlow:
+    def test_full_checkout_payment_success(self, driver, log_test_name):
+        ...
 ```
 
-```bash
-pytest -m ui --reruns 2 --reruns-delay 1
+## Token 复用示例
+
+```python
+def test_with_auth(auth_api_client, log_api_test):
+    ShopApiClient.assert_ok(auth_api_client.get_cart())  # 已复用 auth_token，勿再 login
 ```
 
-规则见 [SKILL.md](SKILL.md) **重试机制**；**不包含**性能/压力测试。
+规则见 [SKILL.md](SKILL.md) **重试机制** / **Token 复用**；清单见 [case.md](case.md)。
 
 ## Allure 报告示例
 
@@ -99,8 +103,7 @@ python run_server.py          # 先启动服务
 pytest                        # 全部，写入 allure-results
 python generate_allure_report.py   # 生成 HTML，浏览器打开 allure-report-complete.html
 pytest -m api                 # 仅接口（无需浏览器）
-pytest -m ui                  # 仅 UI
-pytest -m ui --reruns 2 --reruns-delay 1   # UI 偶发失败重试
+pytest -m ui                  # 仅 UI（类上 @pytest.mark.flaky(reruns=2, reruns_delay=1)）
 pytest -m "api and payment"   # API 支付
 pytest tests/api/test_cart_api.py -v
 ```
