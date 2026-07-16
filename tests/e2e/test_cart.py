@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)  # 标准库：模块 logger
 
 @pytest.mark.ui  # 框架 marker：UI 层
 @pytest.mark.cart  # 框架：自定义 marker 分组
-@pytest.mark.flaky(reruns=2, reruns_delay=1)  # 框架+插件：UI 重试机制（Skill 强制）
 class TestCart:  # 自定义：购物车测试类
 
     def test_cart_add_item_shows_badge_count_one(self, driver, log_test_name):  # 框架：test 方法，注入 fixture

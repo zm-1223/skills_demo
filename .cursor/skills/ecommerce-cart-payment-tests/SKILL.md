@@ -2,7 +2,7 @@
 name: ecommerce-cart-payment-tests
 description: >-
   电商购物车、结算、支付的 UI + 接口双层自动化测试（pytest + Selenium + requests）。
-  含可运行 demo_shop、REST API、E2E 与 API 用例，POM、重试、Allure 报告、日志与失败截图。
+  含可运行 demo_shop、REST API、E2E 与 API 用例，POM、重试、Allure 报告、等待策略、日志与失败截图。
   Use when the user mentions e-commerce cart, checkout, payment, pytest, selenium, allure, POM, retry,
   购物车, 结算, 支付, UI自动化, 接口测试, E2E.
 ---
@@ -103,9 +103,8 @@ skills_demo/
 │   └── utils/
 ├── pytest.ini
 ├── requirements.txt
-├── generate_allure_report.py   # 生成浏览器可打开的 Allure HTML
-├── case.md                     # 用例范围、数量、前置、数据（必读）
-└── run_server.py
+├── run_server.py
+└── generate_allure_report.py   # 生成浏览器可打开的 Allure HTML
 ```
 
 ## 运行步骤
@@ -117,38 +116,39 @@ pip install -r requirements.txt
 python run_server.py
 ```
 
-**终端 2 — 运行测试并生成 Allure 报告：**
+**终端 2 — 运行测试并生成 Allure HTML：**
 
 ```bash
-pytest                  # 写入 reports/allure-results（pytest.ini 已配置）
-python generate_allure_report.py   # 生成浏览器可打开的 HTML
+pytest                                    # 采集到 reports/allure-results
+python generate_allure_report.py          # 生成浏览器可打开 HTML
 ```
 
-仅跑部分用例：
+**浏览器打开报告（任选其一）：**
+
+| 文件 | 说明 |
+|------|------|
+| `reports/allure-report/index.html` | 静态站点（推荐，双击或拖入浏览器） |
+| `reports/allure-report.html` | 单文件 HTML（allure-combine，便于分享） |
+
+也可临时启动本地服务查看：`allure open reports/allure-report`（需安装 Allure CLI）
+
+**按标记运行：**
 
 ```bash
 pytest -m api           # 仅接口
 pytest -m ui            # 仅 UI
 pytest -m "api and cart"
+pytest tests/api/
+pytest tests/e2e/
 ```
-
-**浏览器打开报告（任选其一）：**
-
-| 方式 | 路径 | 说明 |
-|------|------|------|
-| **单文件 HTML（推荐）** | `reports/allure-report-complete.html` | 双击或用浏览器打开，便于分享 |
-| Allure 站点 | `reports/allure-report/index.html` | 多文件静态站 |
-| 在线预览 | `allure open reports/allure-report` | 需已安装 Allure CLI |
-
-**前置：** 生成 HTML 需安装 [Allure 命令行](https://allurereport.org/docs/install/)（如 `scoop install allure`）。`pip install -r requirements.txt` 已含 `allure-pytest`、`allure-combine`。
 
 **产出物：**
 
 | 产出 | 路径 | 适用 |
 |------|------|------|
-| Allure 原始结果 | `reports/allure-results/` | pytest 直接产出 |
-| Allure HTML 站点 | `reports/allure-report/index.html` | generate 脚本 |
-| **单文件 HTML** | `reports/allure-report-complete.html` | **浏览器直接打开** |
+| Allure 原始结果 | `reports/allure-results/` | pytest 自动生成 |
+| Allure HTML 站点 | `reports/allure-report/index.html` | 浏览器打开 |
+| Allure 单文件 HTML | `reports/allure-report.html` | 浏览器打开/分享 |
 | 日志 | `logs/test_*.log` | UI + API |
 | 失败截图 | `reports/screenshots/` + Allure 附件 | UI 失败 |
 
@@ -172,15 +172,11 @@ pytest -m "api and cart"
 
 ## Agent 工作流程
 
-1. **读取 [case.md](case.md)** — 用例范围、数量、前置、数据以该文件为准
-2. **复用本仓库结构** — `tests/api/` + `tests/e2e/` + `tests/clients/`
-3. **先判断层级** — 逻辑/契约 → API；页面/交互 → UI；关键场景 → 两层各一条
-4. **真实环境** — 连 demo_shop 或测试/预发 URL；禁止 mock 接口
-5. **接口** — `ShopApiClient` + **复用 auth_token** + session 隔离 + 断言 HTTP + `code` + `data`
-6. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图 attach 到 Allure
-7. **重试** — UI 类/用例使用 `@pytest.mark.flaky(reruns=2, reruns_delay=1)`
-8. **报告** — pytest 写 `allure-results` → `generate_allure_report.py` 生成 HTML
-9. **变更用例** — 同步更新 **case.md** 数量与明细表
+1. **复用本仓库结构** — `tests/api/` + `tests/e2e/` + `tests/clients/`
+2. **先判断层级** — 逻辑/契约 → API；页面/交互 → UI；关键场景 → 两层各一条
+3. **真实环境** — 连 demo_shop 或测试/预发 URL；禁止 mock 接口
+4. **接口** — `ShopApiClient` + session 隔离 + 断言 HTTP + `code` + `data`
+5. **UI** — **POM 强制** + 显式/隐性等待 + 按需弹窗 + 失败截图 + 偶发 flaky 时用例级重试
 
 ## 接口测试规范
 
@@ -314,122 +310,80 @@ def test_bad(self, driver):
 - UI 结算/支付 → `tests/e2e/test_checkout_payment.py`（只调各 Page）
 - Page → `tests/pages/`（见 **POM 设计模式**）
 
-## 用例清单（case.md）
-
-**必须**维护 [case.md](case.md)，作为用例范围与数据的 **单一事实来源**。
-
-### 文件内容
-
-| 章节 | 说明 |
-|------|------|
-| 数量汇总 | 按 API/UI、模块统计用例数及 P0/P1 |
-| 全局前置条件 | 环境、服务、浏览器、Allure CLI |
-| 全局测试数据 | 账号、SKU、运费、期望金额 |
-| Token / 登录态 | API token 复用规则 |
-| API/UI 用例明细 | 每条：ID、优先级、标题、前置、专用数据、文件/Page |
-
-### Agent 规则
-
-- 新建/删除用例 → **先改 case.md**，再写代码
-- 用例 ID、前置、数据与 case.md 保持一致
-- 跑完全部自动化后，case.md **已实现** 列应与数量汇总一致
-
 ## 重试机制
 
-用于缓解 **环境偶发不稳定**；**统一使用** pytest marker，禁止依赖命令行 `--reruns` 作为默认手段。
+用于缓解 **环境偶发不稳定**（浏览器渲染、网络抖动、第三方支付页加载慢），**不能**用来掩盖业务缺陷或稳定失败的断言。
 
-### 标准写法（强制）
+### 适用 / 不适用
+
+| 适用 | 不适用 |
+|------|--------|
+| UI 元素偶发未就绪（已用显式等待仍偶发） | API 返回固定 4xx/5xx 或业务 code 错误 |
+| 沙箱支付页偶发加载超时 | 断言逻辑写错、测试数据错误 |
+| 本地/CI 环境 flaky | 每次必现的失败 |
+
+**顺序：** 先加强 **显式等待 / POM 稳定性** → 仍 flaky 再加 **用例级重试** → 禁止一上来全局盲目重试。
+
+### 工具与配置
+
+默认使用 **pytest-rerunfailures**：
+
+```bash
+# UI 偶发失败时（最多跑 3 次：1 + 2 次重试）
+pytest -m ui --reruns 2 --reruns-delay 1
+
+# 仅重试指定用例
+pytest tests/e2e/test_cart.py::TestCart::test_cart_add_item_shows_badge_count_one --reruns 2
+```
+
+| 配置 | 推荐值 | 说明 |
+|------|--------|------|
+| `--reruns` | `2` | 失败后最多再跑 2 次 |
+| `--reruns-delay` | `1`（秒） | 重试间隔，禁止用 sleep 代替业务等待 |
+| 作用范围 | **仅 UI** 或标记 `flaky` 的用例 | API 默认不重试 |
+
+环境变量（可选）：`PYTEST_RERUNS=2`、`PYTEST_RERUNS_DELAY=1`
+
+### 用例标记
+
+对确认偶发的 UI 用例打 `@pytest.mark.flaky`：
 
 ```python
 import pytest
 
 @pytest.mark.ui
 @pytest.mark.flaky(reruns=2, reruns_delay=1)
-class TestPaymentFlow:
-    def test_full_checkout_payment_success(self, driver, log_test_name):
-        ...
-```
-
-| 参数 | 值 | 含义 |
-|------|-----|------|
-| `reruns` | `2` | 失败后最多再跑 2 次（共 3 次） |
-| `reruns_delay` | `1` | 重试间隔 1 秒 |
-
-- **UI 测试类**默认加在 **class** 上（本仓库 `TestCart`、`TestCheckout`、`TestPaymentFlow`、`TestLogin`）
-- 依赖：`pytest-rerunfailures`；`pytest.ini` 已注册 `flaky` marker
-- **API 用例不加** `@pytest.mark.flaky`；业务失败不重试
-
-### 适用 / 不适用
-
-| 适用 | 不适用 |
-|------|--------|
-| UI 元素偶发未就绪（已加强显式等待仍 flaky） | API 固定 4xx/5xx 或 code 错误 |
-| 沙箱支付页偶发加载慢 | 断言错误、数据错误、稳定失败 |
-
-**顺序：** 显式等待 / POM → `@pytest.mark.flaky(reruns=2, reruns_delay=1)` → 禁止全局 `--reruns 5`
-
-### 重试反模式
-
-- 用命令行 `--reruns` 替代 marker 作为团队默认
-- 对 API 业务错误加 flaky
-- 用重试替代修复 locator/等待
-- 不记录 flaky、不更新 case.md
-
-## Token 复用（API 强制）
-
-API 登录态 **session 级复用**，避免每条用例重复 `login()`。
-
-### 机制
-
-```python
-# tests/api/conftest.py
-@pytest.fixture(scope="session")
-def auth_token():
-    client = ShopApiClient()
-    client.login()  # 整个 pytest 会话只登录一次
-    return client
-
-@pytest.fixture
-def auth_api_client(auth_token):
-    client = ShopApiClient()
-    client.reuse_auth_from(auth_token)  # 复制 session cookie
+def test_full_checkout_payment_success(self, driver, log_test_name):
     ...
 ```
 
-| Fixture | 作用域 | 说明 |
-|---------|--------|------|
-| `auth_token` | session | 登录一次，持有 session cookie |
-| `auth_api_client` | function | 复用 token，每用例仍 `clear_cart()` |
-| `api_client` | function | 无登录态，购物车等用例 |
+- **API 用例**：不加 `flaky`；连接类错误可在 `ShopApiClient` 内做 **最多 1 次** 请求重试，且只针对 `ConnectionError` / `Timeout`
+- 在 `pytest.ini` 注册 `flaky` marker，避免警告
 
-### 规则
+### 日志与报告
 
-- 需要登录的 API 场景 → 注入 `auth_api_client`，**禁止**在 test 内再 `login()`
-- 测登录接口本身（成功/失败）→ 用 **新** `ShopApiClient()`，不走 `auth_token`
-- `ShopApiClient.reuse_auth_from()` 复制 cookie；`auth_token` 属性标记逻辑身份
-- UI 登录与 API token **独立**（浏览器 cookie ≠ requests Session）
+- 重试发生时必须在日志中可见（pytest-rerunfailures 会输出 `RERUN`）
+- Allure 报告保留 **最终** 结果；若最终通过但曾失败，在 PR/说明中标注为 flaky 并建 issue 修根因
+- 失败截图：以 **最后一次失败** 为准（已有 `screenshot_on_failure`）
 
-### Token 反模式
+### 重试反模式
 
-- 每条 API 用例都 `login()`
-- 多个 worker 并行共用同一 session fixture 导致串扰（并行 CI 时每 worker 独立 session）
-- 把 UI driver cookie 当作 API token 混用
+- 全局 `--reruns 5` 刷绿 CI
+- 对 API 业务错误（库存不足、code≠0）重试
+- 用重试替代显式等待或修复 locator
+- 不记录 flaky 用例、不跟进根因
 
 ## Allure 报告（强制）
 
-默认使用 **Allure** 生成测试报告，**必须**产出可用浏览器打开的 HTML 文件。
+默认使用 **Allure** 生成测试报告，并产出 **浏览器可直接打开** 的 HTML。
 
-### 流程（两步）
+### 依赖
 
-```bash
-# 1. 跑用例，收集结果（pytest.ini 默认 --alluredir=reports/allure-results）
-pytest
-
-# 2. 生成 HTML（站点 + 单文件）
-python generate_allure_report.py
-```
-
-### pytest 配置
+| 包 | 用途 |
+|----|------|
+| `allure-pytest` | pytest 采集结果到 `reports/allure-results` |
+| `allure-combine` | 合并为单文件 `reports/allure-report.html` |
+| **Allure Commandline** | `allure generate` 生成静态站点（需 Java，见下） |
 
 `pytest.ini` 默认：
 
@@ -437,42 +391,56 @@ python generate_allure_report.py
 addopts = -v --alluredir=reports/allure-results --clean-alluredir
 ```
 
-依赖：`allure-pytest`、`allure-combine`（见 `requirements.txt`）
+### 生成流程（两步）
 
-### 浏览器可打开的 HTML
+```bash
+# 1. 运行测试（写入 allure-results）
+pytest
 
-| 文件 | 用途 |
-|------|------|
-| `reports/allure-report-complete.html` | **单文件**，双击打开、发邮件/归档 |
-| `reports/allure-report/index.html` | 多文件 Allure 站（需同目录资源） |
+# 2. 生成 HTML（需 PATH 中有 allure 命令）
+python generate_allure_report.py
+```
 
-生成逻辑：`allure generate` → `allure-combine` → 复制为 `allure-report-complete.html`
+脚本会：
 
-### 附件（失败诊断）
+1. 执行 `allure generate reports/allure-results -o reports/allure-report --clean`
+2. 执行 `allure-combine` 生成 `reports/allure-report.html`
 
-| 类型 | 来源 | Allure 附件名 |
-|------|------|---------------|
-| UI 失败截图 | `tests/e2e/conftest.py` | `failure_screenshot` |
-| API 最后响应 | `tests/api/conftest.py` | `last_api_response` |
+**打开方式：** 资源管理器中双击 `index.html` 或 `allure-report.html`，或浏览器「打开文件」。
 
-用例内可补充：
+### Allure CLI 安装
+
+- 下载：https://github.com/allure-framework/allure2/releases
+- Windows：`scoop install allure` 或解压后将 `bin` 加入 PATH
+- 验证：`allure --version`
+
+### 报告内容要求
+
+| 项 | 实现 |
+|----|------|
+| Environment | `tests/conftest.py` 写入 `environment.properties`（BASE_URL、API 前缀、OS） |
+| 失败截图 | UI 失败时 `allure.attach.file` + 本地 `reports/screenshots/` |
+| 步骤日志 | Page / Client 的 `logger.info` 对照 `logs/` |
+| 分层 | `@allure.feature` / `@allure.story` 可选，按模块标注 |
+
+### 用例装饰示例（可选）
 
 ```python
 import allure
 
 @allure.feature("购物车")
 @allure.story("加购")
-def test_xxx(...):
-    with allure.step("打开商品页"):
-        product.open_product(sku)
+@pytest.mark.ui
+def test_cart_add_item_shows_badge_count_one(self, driver, log_test_name):
+    ...
 ```
 
 ### Allure 反模式
 
-- 只用 pytest-html、不用 Allure（与本 Skill 冲突）
-- 跑完 pytest 不执行 `generate_allure_report.py`，无 HTML 可看
-- 失败无 attach（无截图/无响应体）
-- 把 `allure-results` 当最终报告（JSON 不能直接给业务方看）
+- 只跑 pytest 不执行 `generate_allure_report.py` 就声称「无 HTML 报告」
+- 把 `allure-results` 当最终报告（需 generate 才是 HTML）
+- 不 attach 失败截图到 Allure
+- 用 pytest-html 替代 Allure（本 Skill 以 Allure 为准）
 
 ## 用例 ID 对照
 
@@ -498,15 +466,15 @@ def test_xxx(...):
 | TEST_PASSWORD | 123456 | 密码 |
 | DEFAULT_SKU | sku-001 | 默认商品 |
 | HEADLESS | false | UI 无头模式 |
-| PYTEST_RERUNS | 0 | 已废弃 CLI 重试；请用 `@pytest.mark.flaky(reruns=2, reruns_delay=1)` |
-| PYTEST_RERUNS_DELAY | 1 | 配合 flaky 的 reruns_delay |
+| PYTEST_RERUNS | 0 | UI 重试次数（命令行 `--reruns` 优先） |
+| PYTEST_RERUNS_DELAY | 1 | 重试间隔秒数 |
 
 ## 对接真实项目
 
 1. 改 `BASE_URL` / `API_PREFIX`
 2. 扩展 `ShopApiClient` 方法对齐真实 API
 3. 改 Page 内 `data-testid`
-4. 保留：全局日志、**Allure 报告**、UI/API 失败 Allure 附件、API session 隔离
+4. 保留：全局日志、**Allure HTML 报告**、UI 失败截图 attach、API session 隔离
 
 ## 反模式
 
@@ -514,16 +482,13 @@ def test_xxx(...):
 - mock/stub 接口或支付
 - API 与 UI 共用同一 session 导致串扰
 - UI 使用 sleep；API 无业务 code 断言
-- UI 失败无截图、无 Allure attach；无日志文件
-- 只生成 allure-results、不生成 HTML 报告
+- UI 失败无截图；无日志文件
 - **违反 POM**：test 中直接操作 WebDriver / 写 locator
-- **滥用重试**：API 加 flaky、稳定失败靠重试刷绿
-- **重复 login**：API 不复用 `auth_token`
-- **case.md 不同步**：代码与清单数量/前置不一致
+- **滥用重试**：掩盖稳定失败、对 API 业务错误重试
 - **性能测试**：本 Skill 不包含压测/负载/benchmark（见范围外说明）
+- **不用 Allure**：仅留 allure-results 不 generate HTML
 
 ## 附加资源
 
-- [case.md](case.md) — 用例范围、数量、前置、数据
 - [test-case-template.md](test-case-template.md)
 - [examples.md](examples.md)

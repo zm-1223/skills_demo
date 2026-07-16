@@ -1,6 +1,6 @@
 # 购物车与支付测试用例模板（UI + 接口）
 
-> 设计用例前先查阅 [SKILL.md](SKILL.md) **测试范围矩阵** 与 [case.md](case.md) **用例数量/前置/数据**。
+> 设计用例前先查阅 [SKILL.md](SKILL.md) 中的 **测试范围矩阵** 与各模块测试清单。
 
 ## 单条用例模板
 
@@ -54,8 +54,7 @@
 - Base URL: https://test.example.com
 - API: /api/v1
 - 日志: logs/
-- Allure 单文件 HTML: reports/allure-report-complete.html
-- Allure 站点: reports/allure-report/index.html
+- Allure HTML: reports/allure-report/index.html 或 reports/allure-report.html
 - UI 失败截图: reports/screenshots/ + Allure 附件
 
 ## 范围
@@ -84,11 +83,13 @@
 ## 重试检查表（UI 偶发失败）
 
 ```
-- [ ] 已优先加强显式等待 / POM
-- [ ] UI 类使用 @pytest.mark.flaky(reruns=2, reruns_delay=1)
-- [ ] API 业务失败不加 flaky
-- [ ] API 需登录场景使用 auth_api_client 复用 token
-- [ ] 用例与 case.md 数量/前置/数据一致
+- [ ] 已优先加强显式等待 / POM，非首选重试
+- [ ] 仅 flaky UI 用例标记 @pytest.mark.flaky(reruns=2)
+- [ ] API 业务失败不重试
+- [ ] --reruns 不超过 2，有 --reruns-delay
+- [ ] 日志/报告中可识别 RERUN
+- [ ] Allure HTML 已 generate（index.html 或 allure-report.html）
+- [ ] UI 失败截图已 attach 到 Allure
 ```
 
 ## API 断言检查表
@@ -122,9 +123,7 @@
 - [ ] 显式等待关键元素
 - [ ] 角标/金额/订单文案
 - [ ] 沙箱支付页跳转与回站
-- [ ] 失败截图/响应 attach 到 Allure
-- [ ] 日志已写入 logs/
-- [ ] 已运行 generate_allure_report.py，HTML 可浏览器打开
+- [ ] 失败截图 + 日志 + HTML 报告
 ```
 
 ## 等待策略（UI）
